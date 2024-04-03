@@ -94,7 +94,7 @@ def reservar_mesa(params):
 def transcript_audio(media_id):
     try:
         media = requests.get(f"https://graph.facebook.com/v17.0/{media_id}?access_token={WHATSAPP_TOKEN}")
-        file = requests.get(media.json().url, headers={"Authorization": "Bearer " + WHATSAPP_TOKEN})
+        file = requests.get(media.json()['url'], headers={"Authorization": "Bearer " + WHATSAPP_TOKEN})
         buffer = BytesIO(file.content)
 
         headers = {

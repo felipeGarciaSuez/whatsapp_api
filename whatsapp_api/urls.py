@@ -20,5 +20,5 @@ from chat_api import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("polls/", views.index),
+    path("chat_api/", views.index),
 ]
