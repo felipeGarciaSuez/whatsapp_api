@@ -12,13 +12,6 @@ WHATSAPP_TOKEN = os.environ['WHATSAPP_TOKEN']
 def handle_error(error):
     print("Error Hook API", error)
 
-# def post_request(url, data):
-#     try:
-#         response = requests.post(url, json=data, headers={"Content-Type": "application/json"})
-#         response.raise_for_status()  # Lanza una excepción si la solicitud falla
-#         return response.json()  # Devuelve los datos de respuesta como JSON
-#     except requests.exceptions.RequestException as e:
-#         handle_error(e)
 # Configuración de la API de OpenAI
 openai_url = "https://api.openai.com/v1/"
 openai_headers = {
@@ -88,6 +81,14 @@ def reservar_mesa(params):
     except requests.exceptions.RequestException as e:
         print("Error Hook API", e)
         return None
+    
+functions = {
+    'fecha_hoy': fecha_hoy,
+    'comprobar_reserva': comprobar_reserva,
+    'ver_disponibilidad': ver_disponibilidad,
+    'eliminar_mesa': eliminar_mesa,
+    'reservar_mesa': reservar_mesa
+}
 
 # Función para transcribir un archivo de audio
 
@@ -120,3 +121,89 @@ def transcript_audio(media_id):
     except requests.exceptions.RequestException as e:
         handle_error(e)
         return None
+
+
+#FUnciones para interactuar con la api de OPENAI
+thread_id = None
+run_id = None
+
+
+def create_thread():
+    try:
+        response = requests.post("https://openai_api/threads")
+        response.raise_for_status()
+        data = response.json()
+        thread_id = data.get('id')
+        return thread_id
+    except Exception as e:
+        print(e)
+
+def create_message(content):
+    try:
+        response = requests.post(f"https://openai_api/threads/{thread_id}/messages", json={"role": "user", "content": content})
+        response.raise_for_status()
+        data = response.json()
+        return data
+    except Exception as e:
+        print(e)
+
+def create_run(assistant_id):
+    try:
+        response = requests.post(f"https://openai_api/threads/{thread_id}/runs", json={"assistant_id": assistant_id})
+        response.raise_for_status()
+        data = response.json()
+        run_id = data.get('id')
+        return run_id
+    except Exception as e:
+        print(e)
+
+def get_run_details():
+    try:
+        response = requests.get(f"https://openai_api/threads/{thread_id}/runs/{run_id}")
+        response.raise_for_status()
+        data = response.json()
+        return data
+    except Exception as e:
+        print(e)
+
+def submit_tool_outputs(tool_call_id, output):
+    try:
+        response = requests.post(f"https://openai_api/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", json={"tool_outputs": [{"tool_call_id": tool_call_id, "output": output}]})
+        response.raise_for_status()
+    except Exception as e:
+        print(e)
+
+
+async def wait_till_run_complete():
+    data = get_run_details()
+    if data.get('status') not in ["queued", "in_progress"]:
+        if data.get('status') == "requires_action":
+            required_action = data.get('required_action')
+            function_name = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('function').get('name')
+            if functions.get(function_name):
+                tool_call_id = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('id')
+                arguments = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('function').get('arguments')
+                output = await functions[function_name](arguments)
+                submit_tool_outputs(tool_call_id, output)
+                await wait_till_run_complete()
+
+
+def get_run_steps():
+    try:
+        response = requests.get(f"https://openai_api/threads/{thread_id}/runs/{run_id}/steps")
+        response.raise_for_status()
+        data = response.json()
+        message_id = data.get('data')[0].get('step_details').get('message_creation').get('message_id')
+        return message_id
+    except Exception as e:
+        print(e)
+
+def get_message(message_id):
+    try:
+        response = requests.get(f"https://openai_api/threads/{thread_id}/messages/{message_id}")
+        response.raise_for_status()
+        data = response.json()
+        content = data.get('content')[0].get('text').get('value')
+        return content
+    except Exception as e:
+        print(e)
