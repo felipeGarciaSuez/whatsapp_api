@@ -2,15 +2,19 @@ import os
 import requests
 import datetime
 from io import BytesIO
+import os
 
 # Definimos las variables de entorno
-OPENAI_TOKEN = os.environ['OPENAI_TOKEN']
-ASSISTANT_ID = os.environ['ASSISTANT_ID']
-WHATSAPP_TOKEN = os.environ['WHATSAPP_TOKEN']
+# Load environment variables from .env file
+
+#OPENAI_TOKEN = os.getenv('OPENAI_TOKEN')
+OPENAI_TOKEN = None
+ASSISTANT_ID = os.getenv('ASSISTANT_ID')
+WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN')
 
 # Definimos una función para manejar errores
 def handle_error(error):
-    print("Error Hook API", error)
+    print("ERROR: ", error)
 
 # Configuración de la API de OpenAI
 openai_url = "https://api.openai.com/v1/"
@@ -124,58 +128,65 @@ def transcript_audio(media_id):
 
 
 #FUnciones para interactuar con la api de OPENAI
-thread_id = None
-run_id = None
 
-
-def create_thread():
+#Creacion de thread
+async def create_thread():
     try:
-        response = requests.post("https://openai_api/threads")
+        print("CREATING THREAD DESDE FUNC")
+        response = requests.post(openai_url + "threads", headers=openai_headers)
+        print("THREAD ID", thread_id)
         response.raise_for_status()
-        data = response.json()
-        thread_id = data.get('id')
+        thread_id = response.json()["id"]
+        
         return thread_id
     except Exception as e:
-        print(e)
+        handle_error(e)
 
-def create_message(content):
+#Creacion de mensaje
+async def create_message(thread_id, content):
     try:
-        response = requests.post(f"https://openai_api/threads/{thread_id}/messages", json={"role": "user", "content": content})
-        response.raise_for_status()
-        data = response.json()
+        response = requests.post(
+            openai_url+ "threads/"+thread_id+"/messages",
+            json={"role": "user", "content": content},
+            headers=openai_headers,
+        )
+        response.raise_for_status()  # Lanza una excepción si la solicitud falla
+        data = response.json()  # Devuelve los datos de respuesta como JSON
         return data
     except Exception as e:
-        print(e)
+        handle_error(e)
 
-def create_run(assistant_id):
+async def create_run(thread_id):
     try:
-        response = requests.post(f"https://openai_api/threads/{thread_id}/runs", json={"assistant_id": assistant_id})
+        response = requests.post(f"{openai_url}threads/{thread_id}/runs", json={"assistant_id": ASSISTANT_ID}, headers=openai_headers)
         response.raise_for_status()
         data = response.json()
         run_id = data.get('id')
         return run_id
     except Exception as e:
-        print(e)
+        handle_error(e)
 
-def get_run_details():
+async def get_run_details(thread_id, run_id):
     try:
-        response = requests.get(f"https://openai_api/threads/{thread_id}/runs/{run_id}")
+        response = requests.get(f'{openai_url}threads/{thread_id}/runs/{run_id}', headers=openai_headers)
         response.raise_for_status()
         data = response.json()
+        # print("DATAAAAAAAAAAAAAAAAA", data)
         return data
     except Exception as e:
-        print(e)
+        handle_error(e)
 
-def submit_tool_outputs(tool_call_id, output):
+async def submit_tool_outputs(tool_call_id, output, thread_id, run_id):
     try:
-        response = requests.post(f"https://openai_api/threads/{thread_id}/runs/{run_id}/submit_tool_outputs", json={"tool_outputs": [{"tool_call_id": tool_call_id, "output": output}]})
+        response = requests.post(f'{openai_url}threads/{thread_id}/runs/{run_id}/submit_tool_outputs', json={"tool_outputs": [{"tool_call_id": tool_call_id, "output": output}]}, headers=openai_headers)
         response.raise_for_status()
     except Exception as e:
-        print(e)
+        handle_error(e)
 
 
-async def wait_till_run_complete():
-    data = get_run_details()
+async def wait_till_run_complete(thread_id, run_id):
+    print("Waiting for run to complete", run_id, thread_id)
+    data = await get_run_details(thread_id, run_id)
     if data.get('status') not in ["queued", "in_progress"]:
         if data.get('status') == "requires_action":
             required_action = data.get('required_action')
@@ -184,26 +195,65 @@ async def wait_till_run_complete():
                 tool_call_id = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('id')
                 arguments = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('function').get('arguments')
                 output = await functions[function_name](arguments)
-                submit_tool_outputs(tool_call_id, output)
-                await wait_till_run_complete()
+                submit_tool_outputs(tool_call_id, output, thread_id, run_id)
+                await wait_till_run_complete(thread_id, run_id)
 
 
-def get_run_steps():
+async def get_run_steps(thread_id, run_id):
     try:
-        response = requests.get(f"https://openai_api/threads/{thread_id}/runs/{run_id}/steps")
+        response = requests.get(f"{openai_url}threads/{thread_id}/runs/{run_id}/steps", headers=openai_headers)
         response.raise_for_status()
         data = response.json()
-        message_id = data.get('data')[0].get('step_details').get('message_creation').get('message_id')
+        print("DATAAAAAAAAAAAAAAAAA", data)
+        message_id = data['data'][0]['step_details']['message_creation']['message_id']
         return message_id
     except Exception as e:
-        print(e)
+        handle_error(e)
 
-def get_message(message_id):
+async def get_message(message_id, thread_id):
     try:
-        response = requests.get(f"https://openai_api/threads/{thread_id}/messages/{message_id}")
+        print("GETTING MESSAGE", message_id)
+        response = requests.get(f"{openai_url}threads/{thread_id}/messages/{message_id}", headers=openai_headers)
         response.raise_for_status()
         data = response.json()
+        print("CONTENT", data)
         content = data.get('content')[0].get('text').get('value')
+        
         return content
     except Exception as e:
-        print(e)
+        handle_error(e)
+
+#Ejecucion funciones chat-gpt
+async def chatgpt_execute(content):
+    # Creación de thread
+    print("CREATING THREAD")
+    thread_id = await create_thread()
+    # Creación de mensaje inicial, saludo
+    await create_message(thread_id, content)
+    print("THREAD ID", thread_id, "CONTENT", content)
+    # Crear runner
+    run_id = await create_run(thread_id)
+    print("RUN ID", run_id)
+    # Esperar que se complete el mismo
+    await wait_till_run_complete(thread_id, run_id)
+    # Correr etapas
+    message_id = await get_run_steps(thread_id, run_id)
+    # Obtener mensaje
+    return await get_message(message_id, thread_id)
+
+#Funcion enviarr mensaje
+async def send_message(phone_number_id, to, text):
+    try:
+        response = requests.post(
+            f"https://graph.facebook.com/v12.0/{phone_number_id}/messages?access_token={WHATSAPP_TOKEN}",
+            json={
+                "messaging_product": "whatsapp",
+                "to": to,
+                "text": {"body": text},
+            },
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        return response.text  # Devuelve el texto de la respuesta
+    except requests.exceptions.RequestException as e:
+        handle_error(e)

@@ -8,6 +8,12 @@ WORKDIR /whatsapp_api
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
+# # Copiar el archivo .env al contenedor
+COPY .env ./
+
+# # Cargar las variables de entorno desde el archivo .env
+ENV $(cat .env | xargs)
+
 # Copia todo el contenido actual del directorio de trabajo en el contenedor en /app
 COPY . .
 
