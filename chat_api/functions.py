@@ -8,7 +8,7 @@ import os
 # Load environment variables from .env file
 
 #OPENAI_TOKEN = os.getenv('OPENAI_TOKEN')
-OPENAI_TOKEN = None
+OPENAI_TOKEN = os.getenv('OPENAI_TOKEN')
 ASSISTANT_ID = os.getenv('ASSISTANT_ID')
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN')
 
@@ -31,10 +31,11 @@ hook_headers = {
 }
 
 # Funciones
-def fecha_hoy():
+async def fecha_hoy(params):
+    print(params, "PARAMS DE FECHA HOY")
     return str(datetime.datetime.now())
 
-def comprobar_reserva(params):
+async def comprobar_reserva(params):
     try:
         response = requests.post(
             hook_url + "3kiyahmwul8qg5f7sps8zzppv5h8dnnp",
@@ -42,12 +43,13 @@ def comprobar_reserva(params):
             headers=hook_headers
         )
         response.raise_for_status()
+        print("RESPONSE COMPROBAR RESERVA", response)
         return response.json()
     except requests.exceptions.RequestException as e:
         print("Error Hook API", e)
         return None
 
-def ver_disponibilidad(params):
+async def ver_disponibilidad(params):
     try:
         response = requests.post(
             hook_url + "bzm1bcp3cgykq5b004zptvxy00yhluic",
@@ -55,12 +57,13 @@ def ver_disponibilidad(params):
             headers=hook_headers
         )
         response.raise_for_status()
+        print("RESPONSE VER DISP", response)
         return response.json()
     except requests.exceptions.RequestException as e:
         handle_error(e)
         return None
 
-def eliminar_mesa(params):
+async def eliminar_mesa(params):
     try:
         response = requests.post(
             hook_url + "ic3lgm2m85a8pjpwvd06judp06mt98gw",
@@ -68,12 +71,13 @@ def eliminar_mesa(params):
             headers=hook_headers
         )
         response.raise_for_status()
+        print("RESPONSE ELIMINAR MESA", response)
         return response.json()
     except requests.exceptions.RequestException as e:
         print("Error Hook API", e)
         return None
 
-def reservar_mesa(params):
+async def reservar_mesa(params):
     try:
         response = requests.post(
             hook_url + "7dovs57qgwgfc5buyakktndx2s3bto8k",
@@ -81,6 +85,7 @@ def reservar_mesa(params):
             headers=hook_headers
         )
         response.raise_for_status()
+        print("RESPONSE RESERVAR MESA", response)
         return response.json()
     except requests.exceptions.RequestException as e:
         print("Error Hook API", e)
@@ -96,7 +101,7 @@ functions = {
 
 # Función para transcribir un archivo de audio
 
-def transcript_audio(media_id):
+async def transcript_audio(media_id):
     try:
         media = requests.get(f"https://graph.facebook.com/v17.0/{media_id}?access_token={WHATSAPP_TOKEN}")
         file = requests.get(media.json()['url'], headers={"Authorization": "Bearer " + WHATSAPP_TOKEN})
@@ -134,10 +139,10 @@ async def create_thread():
     try:
         print("CREATING THREAD DESDE FUNC")
         response = requests.post(openai_url + "threads", headers=openai_headers)
-        print("THREAD ID", thread_id)
+        
         response.raise_for_status()
         thread_id = response.json()["id"]
-        
+        print("THREAD ID", thread_id)
         return thread_id
     except Exception as e:
         handle_error(e)
@@ -180,6 +185,8 @@ async def submit_tool_outputs(tool_call_id, output, thread_id, run_id):
     try:
         response = requests.post(f'{openai_url}threads/{thread_id}/runs/{run_id}/submit_tool_outputs', json={"tool_outputs": [{"tool_call_id": tool_call_id, "output": output}]}, headers=openai_headers)
         response.raise_for_status()
+        print(f'{openai_url}threads/{thread_id}/runs/{run_id}/submit_tool_outputs', json={"tool_outputs": [{"tool_call_id": tool_call_id, "output": output}]})
+        print("SUBMIT TOOL OUTPUTS", response.json())
     except Exception as e:
         handle_error(e)
 
@@ -187,6 +194,7 @@ async def submit_tool_outputs(tool_call_id, output, thread_id, run_id):
 async def wait_till_run_complete(thread_id, run_id):
     print("Waiting for run to complete", run_id, thread_id)
     data = await get_run_details(thread_id, run_id)
+    print("DATAAAAAAAAAAAAAAAAA TILL THE RUNN", data['status'])
     if data.get('status') not in ["queued", "in_progress"]:
         if data.get('status') == "requires_action":
             required_action = data.get('required_action')
@@ -194,9 +202,12 @@ async def wait_till_run_complete(thread_id, run_id):
             if functions.get(function_name):
                 tool_call_id = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('id')
                 arguments = required_action.get('submit_tool_outputs').get('tool_calls')[0].get('function').get('arguments')
-                output = await functions[function_name](arguments)
-                submit_tool_outputs(tool_call_id, output, thread_id, run_id)
+                output = await functions.get(function_name)(arguments)
+                print("OUTPUT", output)
+                await submit_tool_outputs(tool_call_id, output, thread_id, run_id)
                 await wait_till_run_complete(thread_id, run_id)
+        return
+    await wait_till_run_complete(thread_id, run_id)
 
 
 async def get_run_steps(thread_id, run_id):
@@ -242,13 +253,13 @@ async def chatgpt_execute(content):
     return await get_message(message_id, thread_id)
 
 #Funcion enviarr mensaje
-async def send_message(phone_number_id, to, text):
+async def send_message(phone_number_id, from_number, text):
     try:
         response = requests.post(
             f"https://graph.facebook.com/v12.0/{phone_number_id}/messages?access_token={WHATSAPP_TOKEN}",
             json={
                 "messaging_product": "whatsapp",
-                "to": to,
+                "to": from_number,
                 "text": {"body": text},
             },
             headers={"Content-Type": "application/json"}

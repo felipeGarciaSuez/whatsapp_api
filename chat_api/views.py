@@ -62,8 +62,10 @@ def webhook_verification(request):
         # Responde con '400 Solicitud incorrecta' si faltan parámetros
         return HttpResponse(status=400)
 
-
-def webhook_view(request):
+@sync_to_async
+@csrf_exempt
+@async_to_sync
+async def webhook_view(request):
     if request.method == 'POST':
         # Información sobre la carga útil de los mensajes de texto de WhatsApp: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples#text-messages
         body = request.body.decode('utf-8')
@@ -88,11 +90,12 @@ def webhook_view(request):
                         #     "Procesando nota de voz. Espera..."
                         # )
                         audio_id = message_data['audio']['id']
-                        message = transcript_audio(audio_id)
+                        message = await transcript_audio(audio_id)
                         transcription = f'*Transcripción del audio:*\n\n"{message}"\n\n_tardará unos segundos..._'
-                        send_message(phone_number_id, from_number, transcription)
-                    chatgpt_response = chatgpt_execute(message)
-                    send_message(phone_number_id, from_number, chatgpt_response)
+                        await send_message(phone_number_id, from_number, transcription)
+                    chatgpt_response = await chatgpt_execute(message)
+                    res =await send_message(phone_number_id, from_number, chatgpt_response)
+                    print(res)
             return JsonResponse({}, status=200)
         else:
             # Devuelve un '404 no encontrado' si el evento no proviene de una API de WhatsApp
