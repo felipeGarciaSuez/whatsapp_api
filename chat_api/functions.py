@@ -3,6 +3,7 @@ import requests
 import datetime
 from io import BytesIO
 import os
+from .models import Thread
 
 # Definimos las variables de entorno
 # Load environment variables from .env file
@@ -135,14 +136,20 @@ async def transcript_audio(media_id):
 #FUnciones para interactuar con la api de OPENAI
 
 #Creacion de thread
-async def create_thread():
+async def create_thread(number):
     try:
-        print("CREATING THREAD DESDE FUNC")
-        response = requests.post(openai_url + "threads", headers=openai_headers)
-        
-        response.raise_for_status()
-        thread_id = response.json()["id"]
-        print("THREAD ID", thread_id)
+        #Le preguntamos si existe un thread con el numero de telefono y si existe lo asignamos para despues retornarlo
+        if (Thread.objects.filter(phone=number).exists()):
+            thread = Thread.objects.get(phone=number)
+            thread_id = thread.threadId
+        else:
+        #Si no existe realizamos el post a la api de openai para crear un thread    
+            print("CREATING THREAD DESDE FUNC")
+            response = requests.post(openai_url + "threads", headers=openai_headers)
+            
+            response.raise_for_status()
+            thread_id = response.json()["id"]
+            print("THREAD ID", thread_id)
         return thread_id
     except Exception as e:
         handle_error(e)
@@ -150,6 +157,7 @@ async def create_thread():
 #Creacion de mensaje
 async def create_message(thread_id, content):
     try:
+        #Aca ejecutamos el post con el thread_id de la base de datos o de la api de openai
         response = requests.post(
             openai_url+ "threads/"+thread_id+"/messages",
             json={"role": "user", "content": content},
@@ -160,6 +168,12 @@ async def create_message(thread_id, content):
         return data
     except Exception as e:
         handle_error(e)
+        #En el caso de que falle la peticion por culpa de 
+        if(e):
+            thread_deleted = Thread.objects.get(threadId=thread_id)
+            phone = thread_deleted.phone
+            thread_deleted.delete()
+            await chatgpt_execute(content, phone)
 
 async def create_run(thread_id):
     try:
@@ -235,11 +249,10 @@ async def get_message(message_id, thread_id):
         handle_error(e)
 
 #Ejecucion funciones chat-gpt
-async def chatgpt_execute(content):
-    # Creación de thread
-    print("CREATING THREAD")
-    thread_id = await create_thread()
-    # Creación de mensaje inicial, saludo
+async def chatgpt_execute(content, number):
+    #Crea un thread en el caso de que no haya uno, si hay agarra el de la DB
+    thread_id = await create_thread(number)
+    # Creación de mensaje inicial
     await create_message(thread_id, content)
     print("THREAD ID", thread_id, "CONTENT", content)
     # Crear runner

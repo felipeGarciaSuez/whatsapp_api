@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
+from django.middleware.csrf import get_token
 import requests
 import json
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from .functions import *
 from asgiref.sync import async_to_sync, sync_to_async
-
+from .models import Thread
 
 
 
@@ -27,15 +28,9 @@ from asgiref.sync import async_to_sync, sync_to_async
 #     res = await send_message(phone_number_id, from_var, text)
     
 #     return HttpResponse("Message sent", res)
-@sync_to_async
-@csrf_exempt
-@async_to_sync
-async def index(request):
-    print("INDEX")
-    res = await chatgpt_execute("Hola respondeme saludandome!")
-    return HttpResponse(res)
 
-def webhook_verification(request):
+@csrf_exempt
+async def webhook_verification(request):
     """
     Esta función maneja la verificación del webhook.
     """
@@ -62,9 +57,7 @@ def webhook_verification(request):
         # Responde con '400 Solicitud incorrecta' si faltan parámetros
         return HttpResponse(status=400)
 
-@sync_to_async
 @csrf_exempt
-@async_to_sync
 async def webhook_view(request):
     if request.method == 'POST':
         # Información sobre la carga útil de los mensajes de texto de WhatsApp: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples#text-messages
@@ -93,8 +86,8 @@ async def webhook_view(request):
                         message = await transcript_audio(audio_id)
                         transcription = f'*Transcripción del audio:*\n\n"{message}"\n\n_tardará unos segundos..._'
                         await send_message(phone_number_id, from_number, transcription)
-                    chatgpt_response = await chatgpt_execute(message)
-                    res =await send_message(phone_number_id, from_number, chatgpt_response)
+                    chatgpt_response = await chatgpt_execute(message, from_number)
+                    res = await send_message(phone_number_id, from_number, chatgpt_response)
                     print(res)
             return JsonResponse({}, status=200)
         else:
@@ -102,9 +95,12 @@ async def webhook_view(request):
             return JsonResponse({}, status=401)
     
     elif request.method == 'GET':
-        return webhook_verification(request)
+        return await webhook_verification(request)
     else:
         return JsonResponse({}, status=405)
 
+def obtener_token_csrf(request):
+    token_csrf = get_token(request)
+    return JsonResponse({'csrf_token': token_csrf})
 
     
