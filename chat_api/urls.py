@@ -4,6 +4,6 @@ from . import views
 
 urlpatterns = [
     # path("", views.index, name="index"),
-    path("token", views.obtener_token_csrf, name="obtener_token_csrf"),
+    # path("token", views.obtener_token_csrf, name="obtener_token_csrf"),
     path("webhook", views.webhook_view, name="webhook_view"),
 ]

@@ -3,7 +3,6 @@ from django.http import JsonResponse, HttpResponse
 from django.middleware.csrf import get_token
 import requests
 import json
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from .functions import *
 from asgiref.sync import async_to_sync, sync_to_async
 from .models import Thread
@@ -29,7 +28,7 @@ from .models import Thread
     
 #     return HttpResponse("Message sent", res)
 
-@csrf_exempt
+# @csrf_exempt
 async def webhook_verification(request):
     """
     Esta función maneja la verificación del webhook.
@@ -57,7 +56,7 @@ async def webhook_verification(request):
         # Responde con '400 Solicitud incorrecta' si faltan parámetros
         return HttpResponse(status=400)
 
-@csrf_exempt
+# @csrf_exempt
 async def webhook_view(request):
     if request.method == 'POST':
         # Información sobre la carga útil de los mensajes de texto de WhatsApp: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples#text-messages
@@ -99,8 +98,8 @@ async def webhook_view(request):
     else:
         return JsonResponse({}, status=405)
 
-def obtener_token_csrf(request):
-    token_csrf = get_token(request)
-    return JsonResponse({'csrf_token': token_csrf})
+# def obtener_token_csrf(request):
+#     token_csrf = get_token(request)
+#     return JsonResponse({'csrf_token': token_csrf})
 
     

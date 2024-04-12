@@ -140,18 +140,21 @@ async def create_thread(number):
     try:
         #Le preguntamos si existe un thread con el numero de telefono y si existe lo asignamos para despues retornarlo
         if (Thread.objects.filter(phone=number).exists()):
+            print("IF THREAD")
             thread = Thread.objects.get(phone=number)
             thread_id = thread.threadId
+            
         else:
         #Si no existe realizamos el post a la api de openai para crear un thread    
             print("CREATING THREAD DESDE FUNC")
-            response = requests.post(openai_url + "threads", headers=openai_headers)
+            response = await requests.post(openai_url + "threads", headers=openai_headers)
             
             response.raise_for_status()
             thread_id = response.json()["id"]
             print("THREAD ID", thread_id)
         return thread_id
     except Exception as e:
+        print("MAL AHI")
         handle_error(e)
 
 #Creacion de mensaje
@@ -168,6 +171,7 @@ async def create_message(thread_id, content):
         return data
     except Exception as e:
         handle_error(e)
+        print("EXCEPCIOOON", e)
         #En el caso de que falle la peticion por culpa de 
         if(e):
             thread_deleted = Thread.objects.get(threadId=thread_id)
@@ -253,8 +257,13 @@ async def chatgpt_execute(content, number):
     #Crea un thread en el caso de que no haya uno, si hay agarra el de la DB
     thread_id = await create_thread(number)
     # Creación de mensaje inicial
-    await create_message(thread_id, content)
+    print("RANDOMM")
+    res = await create_message(thread_id, content)
     print("THREAD ID", thread_id, "CONTENT", content)
+    if res.get('error'):
+        print("ERROR", res)
+        thread_id = await create_thread(number)
+        await create_message(thread_id, content)
     # Crear runner
     run_id = await create_run(thread_id)
     print("RUN ID", run_id)

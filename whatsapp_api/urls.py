@@ -22,5 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('webhook/', views.webhook_view, name="webhook_view"),
     # path("chat_api/", views.index),
-    path("token/", views.obtener_token_csrf)
+    # path("token/", views.obtener_token_csrf)
 ]
