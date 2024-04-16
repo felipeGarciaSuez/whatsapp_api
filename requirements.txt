@@ -2,3 +2,5 @@ Django==3.2.12
 djangorestframework==3.12.4
 requests==2.26.0
 aiohttp
+httpx
+python-dotenv

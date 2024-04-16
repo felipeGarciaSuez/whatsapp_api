@@ -10,23 +10,7 @@ from .models import Thread
 
 
 #Create your views here.
-# @sync_to_async
-# @csrf_exempt
-# @async_to_sync
-# async def send_message_view(request):
-#     print("SENDING MESSAGE")
-#     body = request.body.decode('utf-8')
-#     payload = json.loads(body)
-#     print(payload['entry'][0]['changes'][0])
-#     phone_number_id = payload['entry'][0]['changes'][0]['value']['metadata']['phone_number_id']
-#     from_var = payload['entry'][0]['changes'][0]['value']['messages'][0]['from']
-#     text = payload['entry'][0]['changes'][0]['value']['messages'][0]['text']['body']
-#     print(phone_number_id, from_var, text)
-    
-#     # Agrega 'await' al llamar a la función asíncrona send_message()
-#     res = await send_message(phone_number_id, from_var, text)
-    
-#     return HttpResponse("Message sent", res)
+
 
 # @csrf_exempt
 async def webhook_verification(request):
