@@ -69,10 +69,11 @@ async def webhook_view(request):
                         message = await transcript_audio(audio_id)
                         transcription = f'*Transcripción del audio:*\n\n"{message}"\n\n_tardará unos segundos..._'
                         await send_message(phone_number_id, from_number, transcription)
+                    print(f"Mensaje recibido de {from_number}: {message}")
                     chatgpt_response = await chatgpt_execute(message, from_number)
                     res = await send_message(phone_number_id, from_number, chatgpt_response)
                     print(res)
-            return JsonResponse({}, status=200)
+            return JsonResponse({"Respuesta": chatgpt_response}, status=200)
         else:
             # Devuelve un '404 no encontrado' si el evento no proviene de una API de WhatsApp
             return JsonResponse({}, status=401)
