@@ -26,5 +26,3 @@ urlpatterns = [
     # path("chat_api/", views.index),
     # path("token/", views.obtener_token_csrf)
 ]
-
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
