@@ -22,10 +22,11 @@ async def webhook_verification(request):
     verify_token = os.getenv('VERIFY_TOKEN')
 
     # Analizar parámetros de la solicitud de verificación del webhook
-    mode = request.GET.get("hub.mode")
-    token = request.GET.get("hub.verify_token")
-    challenge = request.GET.get("hub.challenge")
-
+    mode = request.GET.get("mode")
+    token = request.GET.get("verify_token")
+    challenge = request.GET.get("challenge")
+    print(f"mode: {mode}, token: {token}, challenge: {challenge}")
+    print(request.GET)
     # Comprobar si se envió un token y un modo.
     if mode and token:
         # Verifique que el modo y el token enviado sean correctos
@@ -71,8 +72,11 @@ async def webhook_view(request):
                         await send_message(phone_number_id, from_number, transcription)
                     print(f"Mensaje recibido de {from_number}: {message}")
                     chatgpt_response = await chatgpt_execute(message, from_number)
-                    res = await send_message(phone_number_id, from_number, chatgpt_response)
-                    print(res)
+                    if chatgpt_response:
+                        res = await send_message(phone_number_id, from_number, chatgpt_response)
+                        print(res)
+                    else:
+                        JsonResponse({"Respuesta": "No se pudo completar la solicitud"}, status=204)
             return JsonResponse({"Respuesta": chatgpt_response}, status=200)
         else:
             # Devuelve un '404 no encontrado' si el evento no proviene de una API de WhatsApp

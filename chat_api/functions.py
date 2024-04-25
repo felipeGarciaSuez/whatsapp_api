@@ -24,7 +24,7 @@ openai_url = "https://api.openai.com/v1/"
 openai_headers = {
     "Content-Type": "application/json",
     "Authorization": f"Bearer {OPENAI_TOKEN}",
-    "OpenAI-Beta": "assistants=v1",
+    "OpenAI-Beta": "assistants=v2",
 }
 
 # Configuración de la API de Hook
@@ -139,7 +139,7 @@ async def transcript_audio(media_id):
 #Creacion de thread
 async def create_thread(phone):
     try:
-        number_object = await sync_to_async(Thread.search_by_number)("5493413669925")
+        number_object = await sync_to_async(Thread.search_by_number)(phone)
         print("NUMBER OBJECT olaaa", number_object)
         if number_object != []:
             print("ENTRO AL IF")
@@ -187,6 +187,7 @@ async def create_run(thread_id):
         response = httpx.post(f"{openai_url}threads/{thread_id}/runs", json={"assistant_id": ASSISTANT_ID}, headers=openai_headers)
         response.raise_for_status()
         data = response.json()
+        print("DATA RUN", data)
         run_id = data.get('id')
         return run_id
     except httpx.HTTPError as e:
@@ -263,22 +264,25 @@ async def chatgpt_execute(content, number):
     #Crea un thread en el caso de que no haya uno, si hay agarra el de la DB
     thread_id = await create_thread(phone=number)
     # Creación de mensaje inicial
-    print("RANDOMM")
-    res = await create_message(thread_id, content)
-    print(res, "RES EN FUNCTION")
-    if res.status_code == 404 or res.status_code == 400:
-        print("ERROR DETECTADO", res)
-        thread_id = await create_thread(number)
-        await create_message(thread_id, content)
-    # Crear runner
-    run_id = await create_run(thread_id)
-    print("RUN ID", run_id)
-    # Esperar que se complete el mismo
-    await wait_till_run_complete(thread_id, run_id)
-    # Correr etapas
-    message_id = await get_run_steps(thread_id, run_id)
-    # Obtener mensaje
-    return await get_message(message_id, thread_id)
+    if thread_id:
+        res = await create_message(thread_id, content)
+        print(res, "RES EN FUNCTION")
+        if res.status_code == 404 or res.status_code == 400:
+            print("ERROR DETECTADO", res)
+            thread_id = await create_thread(number)
+            await create_message(thread_id, content)
+        # Crear runner
+        run_id = await create_run(thread_id)
+        if run_id:
+            print("RUN ID", run_id)
+            # Esperar que se complete el mismo
+            await wait_till_run_complete(thread_id, run_id)
+            # Correr etapas
+            message_id = await get_run_steps(thread_id, run_id)
+            # Obtener mensaje
+            if message_id:
+                return await get_message(message_id, thread_id)
+    return None        
 
 #Funcion enviarr mensaje
 async def send_message(phone_number_id, from_number, text):
