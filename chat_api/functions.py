@@ -1,7 +1,6 @@
 import os
 import httpx
 import datetime
-from io import BytesIO
 import os
 from dotenv import load_dotenv
 from .models import Thread
@@ -108,31 +107,35 @@ async def transcript_audio(media_id):
     try:
         media = httpx.get(f"https://graph.facebook.com/v17.0/{media_id}?access_token={WHATSAPP_TOKEN}")
         file = httpx.get(media.json()['url'], headers={"Authorization": "Bearer " + WHATSAPP_TOKEN})
-        buffer = BytesIO(file.content)
+        print("MEDIA_ID", media_id)
+        print("FILE", file)
+        print("MEDIA", media)
 
-        headers = {
-            "Authorization": "Bearer " + OPENAI_TOKEN,
-            "Content-Type": "audio/ogg",
+        form_data = {
+            'file': ('grabacion.ogg', file.content, 'audio/ogg'),
         }
-        files = {
-            "file": buffer.getvalue(),
-        }
-        data = {
-            "model": "whisper-1",
-        }
+        data = {'model': 'whisper-1'}
 
         openai_transcription = httpx.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers=headers,
-            files=files,
-            data=data,
-        )
+            'https://api.openai.com/v1/audio/transcriptions',
+                headers={
+                    'Authorization': f'Bearer {OPENAI_TOKEN}'
+
+                },
+                files=form_data,
+                data=data
+
+            )
+        print(openai_transcription)
+        print(openai_transcription.json())
+        print (openai_transcription.json()["text"])
 
         return openai_transcription.json()["text"]
 
     except httpx.HTTPError as e:
         handle_error(e)
         return None
+
 
 
 #FUnciones para interactuar con la api de OPENAI
@@ -180,7 +183,7 @@ async def create_message(thread_id, content):
             thread_deleted = await sync_to_async(Thread.objects.get)(threadId=thread_id)
             print("THREAD DELETED", thread_deleted)
             await sync_to_async(thread_deleted.delete)()
-            return e.response
+        return e.response
 
 async def create_run(thread_id):
     try:

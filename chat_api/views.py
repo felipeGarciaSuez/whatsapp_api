@@ -6,6 +6,7 @@ import json
 from .functions import *
 from asgiref.sync import async_to_sync, sync_to_async
 from .models import Thread
+from django.views.decorators.common import no_append_slash
 
 
 
@@ -13,6 +14,7 @@ from .models import Thread
 
 
 # @csrf_exempt
+@no_append_slash
 async def webhook_verification(request):
     """
     Esta función maneja la verificación del webhook.
