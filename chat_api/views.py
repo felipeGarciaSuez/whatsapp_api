@@ -19,9 +19,9 @@ async def webhook_verification(request):
     verify_token = os.getenv('VERIFY_TOKEN')
 
     # Analizar parámetros de la solicitud de verificación del webhook
-    mode = request.GET.get("mode")
-    token = request.GET.get("verify_token")
-    challenge = request.GET.get("challenge")
+    mode = request.GET.get("hub.mode")
+    token = request.GET.get("hub.verify_token")
+    challenge = request.GET.get("hub.challenge")
     
     print(f"mode: {mode}, token: {token}, challenge: {challenge}")
     print(request.GET)
