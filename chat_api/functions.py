@@ -224,7 +224,11 @@ async def create_run(thread_id):
     try:
         print("FUNCTION CREATE RUN PARAMS", thread_id)
         #Ejecutamos el post para crear un run y devolvemos el run id
-        response = httpx.post(f"{openai_url}threads/{thread_id}/runs", json={"assistant_id": ASSISTANT_ID}, headers=openai_headers)
+        response = httpx.post(f"{openai_url}threads/{thread_id}/runs", json={"assistant_id": ASSISTANT_ID,
+                                                                              #"temperature": 1,
+                                                                              #"truncation_strategy": {type: "last_messages",last_messages: 8},
+                                                                              #"tool_choice": {"type": "function","function": {"name": "fecha_hoy"}}
+                                                                              }, headers=openai_headers)
         response.raise_for_status()
         data = response.json()
         print("DATA RUN", data)
