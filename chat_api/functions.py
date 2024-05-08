@@ -54,7 +54,7 @@ async def comprobar_reserva(params):
     try:
         response = httpx.post(
             hook_url + "3kiyahmwul8qg5f7sps8zzppv5h8dnnp",
-            params=params,
+            data=params,
             headers=hook_headers
         )
         response.raise_for_status()
@@ -68,7 +68,7 @@ async def ver_disponibilidad(params):
     try:
         response = httpx.post(
             hook_url + "bzm1bcp3cgykq5b004zptvxy00yhluic",
-            params=params,
+            data=params,
             headers=hook_headers
         )
         print("RESPONSE VER DISPONIBILIDAD", response)
@@ -82,7 +82,7 @@ async def eliminar_mesa(params):
     try:
         response = httpx.post(
             hook_url + "ic3lgm2m85a8pjpwvd06judp06mt98gw",
-            params=params,
+            data=params,
             headers=hook_headers
         )
         response.raise_for_status()
@@ -96,7 +96,7 @@ async def reservar_mesa(params):
     try:
         response = httpx.post(
             hook_url + "7dovs57qgwgfc5buyakktndx2s3bto8k",
-            params=params,
+            data=params,
             headers=hook_headers
         )
         response.raise_for_status()
